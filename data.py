@@ -5,6 +5,9 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
 
 
+population =  330000000
+
+
 def read_data():
     df = pd.read_csv('US.timeseries.csv')
     first_Sunday = 54  # The first Sunday that we have test data
@@ -12,7 +15,7 @@ def read_data():
     
     def get_weekly(cumulative):
         diff = [cumulative[n]-cumulative[n-1] for n in range(first_Sunday, last_Sunday)]
-        weekly = np.array([np.mean(diff[7 * i: 7 * i + 6]) for i in range(len(diff) // 7)])
+        weekly = np.array([np.sum(diff[7 * i: 7 * i + 6]) for i in range(len(diff) // 7)])
         return weekly
     
     def smooth(raw):
@@ -32,14 +35,39 @@ def fit_model(cases, tests):
     return reg.predict(cases)
 
 
+def get_transition_probability(weekly_cases):
+    trans_prob = np.zeros([4,4])
+    for i in range(len(weekly_cases) - 1):
+        curr = int(weekly_cases[i] / population * 1000) - 1
+        next = int(weekly_cases[i + 1] / population * 1000) - 1
+        trans_prob[curr][next] = trans_prob[curr][next] + 1
+    trans_prob = (trans_prob.T / np.sum(trans_prob, axis=1)).T
+    return trans_prob
+
+
+def get_mapping_from_infection_to_test(weekly_cases, weekly_tests):
+    trans_prob = np.zeros([4,7])
+    for i in range(len(weekly_cases)):
+        cases = int(weekly_cases[i] / population * 1000) - 1
+        tests = int(weekly_tests[i] / population * 200) - 1
+        trans_prob[cases][tests] = trans_prob[cases][tests] + 1
+    trans_prob = (trans_prob.T / np.sum(trans_prob, axis=1)).T
+    return trans_prob
+
+
 if __name__ == '__main__':
     weekly_cases, weekly_tests = read_data()
-    predicted_tests = fit_model(weekly_cases, weekly_tests)
-    weekly_cases = weekly_cases[:-2]
+    weekly_cases = weekly_cases[:-1]
     weekly_tests = weekly_tests[1:]
 
-    plt.plot(weekly_cases, label='new cases')
-    plt.plot(weekly_tests, label='tests')
-    plt.plot(predicted_tests, label='predicted tests')
-    plt.legend()
-    plt.show()
+    print('\nTransition probability is :')
+    print(get_transition_probability(weekly_cases))
+    print('\nMapping from infection rate to testing demand is')
+    print(get_mapping_from_infection_to_test(weekly_cases, weekly_tests))
+    
+    # predicted_tests = fit_model(weekly_cases, weekly_tests)
+    # plt.plot(weekly_cases, label='new cases')
+    # plt.plot(weekly_tests, label='tests')
+    # plt.plot(predicted_tests, label='predicted tests')
+    # plt.legend()
+    # plt.show()
