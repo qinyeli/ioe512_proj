@@ -1,30 +1,24 @@
-import pandas as pd
-import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
 
-
-population =  330000000
+import utils
 
 
 def read_data():
-    df = pd.read_csv('US.timeseries.csv')
-    first_Sunday = 54  # The first Sunday that we have test data
-    last_Sunday = 530  # We only consider up to 2021-07-04, bc the data is missing on the next day
-    
-    def get_weekly(cumulative):
-        diff = [cumulative[n]-cumulative[n-1] for n in range(first_Sunday, last_Sunday)]
-        weekly = np.array([np.sum(diff[7 * i: 7 * i + 6]) for i in range(len(diff) // 7)])
-        return weekly
-    
+    df = pd.read_csv('UM-covid-data.csv')
+
     def smooth(raw):
         box_pts = 3  # smooth over 3 weeks
         box = np.ones(box_pts)/box_pts
         return np.convolve(raw, box, mode='same')
 
-    return smooth(get_weekly(df['actuals.cases'])), \
-           smooth(get_weekly(df['actuals.positiveTests'] + df['actuals.negativeTests']))
+    weekly_cases = smooth(df['cases'])
+    weekly_tests = smooth(df['tests'])
+    return weekly_cases[:-1], weekly_tests[1:]
 
 
 def fit_model(cases, tests):
@@ -36,38 +30,67 @@ def fit_model(cases, tests):
 
 
 def get_transition_probability(weekly_cases):
-    trans_prob = np.zeros([4,4])
+    # Infection rates are in the rage 0.0001 ~ 0.0004
+    trans_prob = np.zeros([5,5])
     for i in range(len(weekly_cases) - 1):
-        curr = int(weekly_cases[i] / population * 1000) - 1
-        next = int(weekly_cases[i + 1] / population * 1000) - 1
+        curr = utils.weekly_cases_to_index(weekly_cases[i])
+        next = utils.weekly_cases_to_index(weekly_cases[i + 1])
         trans_prob[curr][next] = trans_prob[curr][next] + 1
     trans_prob = (trans_prob.T / np.sum(trans_prob, axis=1)).T
     return trans_prob
 
 
 def get_mapping_from_infection_to_test(weekly_cases, weekly_tests):
-    trans_prob = np.zeros([4,7])
+    trans_prob = np.zeros([5,6])
     for i in range(len(weekly_cases)):
-        cases = int(weekly_cases[i] / population * 1000) - 1
-        tests = int(weekly_tests[i] / population * 200) - 1
+        cases = utils.weekly_cases_to_index(weekly_cases[i])
+        tests = utils.weekely_tests_to_index(weekly_tests[i])
         trans_prob[cases][tests] = trans_prob[cases][tests] + 1
     trans_prob = (trans_prob.T / np.sum(trans_prob, axis=1)).T
     return trans_prob
 
 
-if __name__ == '__main__':
+def get_matrices(verbose=False):
     weekly_cases, weekly_tests = read_data()
-    weekly_cases = weekly_cases[:-1]
-    weekly_tests = weekly_tests[1:]
-
-    print('\nTransition probability is :')
-    print(get_transition_probability(weekly_cases))
-    print('\nMapping from infection rate to testing demand is')
-    print(get_mapping_from_infection_to_test(weekly_cases, weekly_tests))
+    trans_prob = get_transition_probability(weekly_cases)
+    mapping_from_infection_to_test = get_mapping_from_infection_to_test(weekly_cases, weekly_tests)
     
+    if verbose:
+        np.set_printoptions(precision=3)
+        print('\nTransition probability is :')
+        print(trans_prob)
+        print('\nMapping from infection rate to testing demand is')
+        print(mapping_from_infection_to_test)
+
+    return trans_prob, mapping_from_infection_to_test
+
+
+def plot_heatmap(data, row_labels, col_labels):
+    im, cbar = utils.heatmap(
+        data,
+        row_labels,
+        col_labels,
+        cmap="YlGn",
+        cbarlabel="Probability for demand")
+    utils.annotate_heatmap(im, valfmt="{x:.1f}")
+    plt.show()
+
+if __name__ == '__main__':
+    trans_prob, mapping_from_infection_to_test = get_matrices(verbose=True)
+
+    # Plot heatmap
+    infection_rates = [utils.index_to_weekly_cases(i) for i in range(5)]
+    testing_kit_demand = [utils.index_to_weekly_tests(i) for i in range(6)]
+    plot_heatmap(trans_prob, infection_rates, infection_rates)
+    plot_heatmap(mapping_from_infection_to_test, infection_rates, testing_kit_demand)
+
     # predicted_tests = fit_model(weekly_cases, weekly_tests)
     # plt.plot(weekly_cases, label='new cases')
     # plt.plot(weekly_tests, label='tests')
     # plt.plot(predicted_tests, label='predicted tests')
     # plt.legend()
+    # plt.show()
+
+    # https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html
+    # plt.imshow(trans_prob, cmap='hot', interpolation='nearest')
     # plt.show()
