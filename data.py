@@ -41,7 +41,9 @@ def get_transition_probability(weekly_cases):
 
 
 def get_mapping_from_infection_to_test(weekly_cases, weekly_tests):
-    trans_prob = np.zeros([5,6])
+    trans_prob = np.zeros([
+        utils.get_num_cases_intervals(),
+        utils.get_num_tests_intervals()])
     for i in range(len(weekly_cases)):
         cases = utils.weekly_cases_to_index(weekly_cases[i])
         tests = utils.weekely_tests_to_index(weekly_tests[i])
@@ -50,8 +52,7 @@ def get_mapping_from_infection_to_test(weekly_cases, weekly_tests):
     return trans_prob
 
 
-def get_matrices(verbose=False):
-    weekly_cases, weekly_tests = read_data()
+def get_matrices(weekly_cases, weekly_tests, verbose=False):
     trans_prob = get_transition_probability(weekly_cases)
     mapping_from_infection_to_test = get_mapping_from_infection_to_test(weekly_cases, weekly_tests)
     
@@ -75,8 +76,22 @@ def plot_heatmap(data, row_labels, col_labels):
     utils.annotate_heatmap(im, valfmt="{x:.1f}")
     plt.show()
 
+
+def fit_linear_model(weekly_cases, weekly_tests):
+    predicted_tests = fit_model(weekly_cases, weekly_tests)
+    plt.plot(weekly_cases, label='new cases')
+    plt.plot(weekly_tests, label='tests')
+    plt.plot(predicted_tests, label='predicted tests')
+    plt.legend()
+    plt.show()
+
+
 if __name__ == '__main__':
-    trans_prob, mapping_from_infection_to_test = get_matrices(verbose=True)
+    weekly_cases, weekly_tests = read_data()    
+    trans_prob, mapping_from_infection_to_test = get_matrices(
+            weekly_cases,
+            weekly_tests,
+            verbose=True)
 
     # Plot heatmap
     infection_rates = [utils.index_to_weekly_cases(i) for i in range(5)]
@@ -84,13 +99,16 @@ if __name__ == '__main__':
     plot_heatmap(trans_prob, infection_rates, infection_rates)
     plot_heatmap(mapping_from_infection_to_test, infection_rates, testing_kit_demand)
 
-    # predicted_tests = fit_model(weekly_cases, weekly_tests)
-    # plt.plot(weekly_cases, label='new cases')
-    # plt.plot(weekly_tests, label='tests')
-    # plt.plot(predicted_tests, label='predicted tests')
-    # plt.legend()
+    # fit_linear_model(weekly_cases, weekly_tests)
+
+    # plt.plot(weekly_cases)
+    # plt.xlabel('Weeks')
+    # plt.ylabel('Positive cases')
+    # plt.title('Weekly cases')
     # plt.show()
 
-    # https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html
-    # plt.imshow(trans_prob, cmap='hot', interpolation='nearest')
+    # plt.plot(weekly_tests)
+    # plt.xlabel('Weeks')
+    # plt.ylabel('Test conducted')
+    # plt.title('Weekly tested')
     # plt.show()

@@ -4,19 +4,27 @@ import numpy as np
 
 
 def weekly_cases_to_index(weekly_case):
-    return int(weekly_case / 80) - 1
+    return int(weekly_case / 80)
 
 
 def index_to_weekly_cases(index):
     return 80 * (index + 1)
 
 
+def get_num_cases_intervals():
+    return 5
+
+
 def weekely_tests_to_index(weekly_test):
-    return int(weekly_test / 5000) - 1
+    return int(weekly_test / 4000)
 
 
 def index_to_weekly_tests(index):
-    return 5000 * (index + 1)
+    return 4000 * (index + 1)
+
+
+def get_num_tests_intervals():
+    return 6
 
 
 # Ref: https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html
