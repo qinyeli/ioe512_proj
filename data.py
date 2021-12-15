@@ -94,12 +94,12 @@ if __name__ == '__main__':
             verbose=True)
 
     # Plot heatmap
-    infection_rates = [utils.index_to_weekly_cases(i) for i in range(5)]
-    testing_kit_demand = [utils.index_to_weekly_tests(i) for i in range(6)]
-    plot_heatmap(trans_prob, infection_rates, infection_rates)
-    plot_heatmap(mapping_from_infection_to_test, infection_rates, testing_kit_demand)
+    # infection_rates = [utils.index_to_weekly_cases(i) for i in range(5)]
+    # testing_kit_demand = [utils.index_to_weekly_tests(i) for i in range(6)]
+    # plot_heatmap(trans_prob, infection_rates, infection_rates)
+    # plot_heatmap(mapping_from_infection_to_test, infection_rates, testing_kit_demand)
 
-    # fit_linear_model(weekly_cases, weekly_tests)
+    fit_linear_model(weekly_cases, weekly_tests)
 
     # plt.plot(weekly_cases)
     # plt.xlabel('Weeks')

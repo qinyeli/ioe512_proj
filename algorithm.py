@@ -6,9 +6,9 @@ import sys
 
 # Parameters to tune.
 FIXED_COST = 10
-UNIT_PRICE = 3
-PENALTY = 50
-STORAGE_LIMIT = 20
+UNIT_PRICE = 100
+PENALTY = 300
+STORAGE_LIMIT = 9
 
 #----------------------------------------------------------------------#T = 4
 T = 4
@@ -21,6 +21,7 @@ trans_prob, mapping_from_infection_to_test = data.get_matrices(weekly_cases, wee
 value = np.zeros([T + 1, STORAGE_LIMIT, utils.get_num_cases_intervals()], dtype=float)
 policy = - np.ones([T + 1, STORAGE_LIMIT, utils.get_num_cases_intervals()], dtype=float)
 
+consider_saliva_test = True
 
 for t in range(T - 1, -1, -1):
     for storage in range(STORAGE_LIMIT):
@@ -37,16 +38,23 @@ for t in range(T - 1, -1, -1):
                 for test_demand in range(utils.get_num_tests_intervals()):
                     test_prob = mapping_from_infection_to_test[curr_cases][test_demand]
 
-                    # If the supply does not meet the demand, add penalty.
-                    remaining_kit = a + storage - test_demand
-                    if remaining_kit < 0:
-                        curr_val += PENALTY * abs(remaining_kit) * test_prob
-                        remaining_kit = 0
+                    possible_saliva_test_supply = None
+                    if consider_saliva_test:
+                        possible_saliva_test_supply = [1, 2]
+                    else:
+                        possible_saliva_test_supply = [0]
 
-                    # Add the value for the next stage
-                    for next_cases in range(utils.get_num_cases_intervals()):
-                        case_prob = trans_prob[curr_cases][next_cases]
-                        curr_val += value[t + 1][remaining_kit][next_cases] * test_prob * case_prob
+                    for saliva_test_supply in possible_saliva_test_supply:
+                        # If the supply does not meet the demand, add penalty.
+                        remaining_kit = min(a + storage - test_demand + saliva_test_supply, STORAGE_LIMIT - 1)
+                        if remaining_kit < 0:
+                            curr_val += PENALTY * abs(remaining_kit) * test_prob / len(possible_saliva_test_supply)
+                            remaining_kit = 0
+
+                        # Add the value for the next stage
+                        for next_cases in range(utils.get_num_cases_intervals()):
+                            case_prob = trans_prob[curr_cases][next_cases]
+                            curr_val += value[t + 1][remaining_kit][next_cases] * test_prob * case_prob / len(possible_saliva_test_supply)
 
                 if best_val > curr_val:
                     best_val = curr_val
